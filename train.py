@@ -26,8 +26,12 @@ STAGES = {
     2: dict(h=5, w=5, random=True, key_door=False, total_steps=3_000_000, target=0.95),
     3: dict(h=5, w=5, random=True, key_door=True, total_steps=6_000_000, target=0.99),
     4: dict(h=8, w=8, random=True, key_door=True, total_steps=4_000_000, target=0.95),
-    # 阶段 5：换成"已探索地图"观测，混合尺寸 5–10 训练，目标是泛化到更大的迷宫
-    5: dict(h=8, w=8, random=True, key_door=True, obs="map", size_range=(5, 10),
+    # 阶段 5：换成"已探索地图"观测。CNN 没法接阶段 4 的权重，所以自己也走一遍课程：
+    #   5  随机 5x5（和阶段 3 同设定，验证新架构能学）
+    #   6  混合尺寸 5–10，接阶段 5，目标是泛化到更大的迷宫
+    5: dict(h=5, w=5, random=True, key_door=True, obs="map",
+            total_steps=3_000_000, target=0.97),
+    6: dict(h=8, w=8, random=True, key_door=True, obs="map", size_range=(5, 10),
             total_steps=6_000_000, target=0.95),
 }
 
