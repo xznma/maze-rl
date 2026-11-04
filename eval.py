@@ -50,10 +50,13 @@ def main():
     ap.add_argument("--seed-offset", type=int, default=1_000_000, help="避开训练用过的 seed")
     ap.add_argument("--render", type=int, default=1)
     ap.add_argument("--sample", action="store_true", help="按策略采样而不是 argmax")
+    ap.add_argument("--h", type=int); ap.add_argument("--w", type=int)
     args = ap.parse_args()
 
     ck = torch.load(args.ckpt)
     cfg = ck["args"]
+    if args.h: cfg["h"] = args.h          # 可以在比训练时更大的迷宫上零样本测试
+    if args.w: cfg["w"] = args.w
     model = ActorCritic(); model.load_state_dict(ck["model"]); model.eval()
     env = MazeRLEnv(cfg["h"], cfg["w"], cfg["key_door"])
     print(f"maze {cfg['h']}x{cfg['w']} key_door={cfg['key_door']} | {args.episodes} episodes")

@@ -5,6 +5,7 @@
   python train.py --stage 1                    # 固定 5x5，无钥匙门
   python train.py --stage 2                    # 随机 5x5，无钥匙门
   python train.py --stage 3 --init ckpt/stage2.pt   # 随机 5x5，有钥匙门，接着练
+  python train.py --stage 4 --init ckpt/stage3.pt   # 随机 8x8，有钥匙门
   也可以用 --h --w --random --key-door 自定义。
 """
 import argparse
@@ -23,7 +24,8 @@ STAGES = {
     0: dict(h=3, w=3, random=False, key_door=False, total_steps=100_000, target=0.98),
     1: dict(h=5, w=5, random=False, key_door=False, total_steps=400_000, target=0.98),
     2: dict(h=5, w=5, random=True, key_door=False, total_steps=3_000_000, target=0.95),
-    3: dict(h=5, w=5, random=True, key_door=True, total_steps=6_000_000, target=0.90),
+    3: dict(h=5, w=5, random=True, key_door=True, total_steps=6_000_000, target=0.99),
+    4: dict(h=8, w=8, random=True, key_door=True, total_steps=4_000_000, target=0.95),
 }
 
 
