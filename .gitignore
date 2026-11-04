@@ -2,7 +2,5 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-checkpoints/
 runs/
-*.pt
 .DS_Store

@@ -13,11 +13,11 @@ import torch
 
 from env import MazeRLEnv, optimal_steps
 from maze_game import DIRS, ExplorerAgent, MazeEnv, build_level
-from model import ActorCritic
+from model import model_from_checkpoint
 
 
 def record_rl(model, h, w, key_door, seed):
-    env = MazeRLEnv(h, w, key_door)
+    env = MazeRLEnv(h, w, key_door, obs_mode=model.obs_mode, map_radius=model.R)
     obs = env.reset(seed)
     state, first = model.initial_state(1), torch.ones(1)
     steps, done = [], False
@@ -70,10 +70,8 @@ def main():
     ap.add_argument("--out", default="replay.html")
     args = ap.parse_args()
 
-    ck = torch.load(args.ckpt)
-    cfg = ck["args"]
+    model, cfg = model_from_checkpoint(torch.load(args.ckpt))
     h, w, key_door = args.h or cfg["h"], args.w or cfg["w"], cfg["key_door"]
-    model = ActorCritic(); model.load_state_dict(ck["model"]); model.eval()
 
     grid, start = build_level(h, w, args.seed, key_door)
     max_steps = 4 * (2 * h * w - 1)
@@ -85,7 +83,7 @@ def main():
         "grid": ["".join(r) for r in grid], "start": list(start),
         "optimal": optimal_steps(grid, start), "max_steps": max_steps,
         "agents": [
-            {"name": "PPO + LSTM", "steps": annotate_events(rl_steps, grid), "success": rl_ok},
+            {"name": "PPO + LSTM" + ("（地图观测）" if model.obs_mode == "map" else ""), "steps": annotate_events(rl_steps, grid), "success": rl_ok},
             {"name": "算法 agent", "steps": annotate_events(al_steps, grid), "success": al_ok},
         ],
     }

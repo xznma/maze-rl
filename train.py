@@ -26,6 +26,9 @@ STAGES = {
     2: dict(h=5, w=5, random=True, key_door=False, total_steps=3_000_000, target=0.95),
     3: dict(h=5, w=5, random=True, key_door=True, total_steps=6_000_000, target=0.99),
     4: dict(h=8, w=8, random=True, key_door=True, total_steps=4_000_000, target=0.95),
+    # 阶段 5：换成"已探索地图"观测，混合尺寸 5–10 训练，目标是泛化到更大的迷宫
+    5: dict(h=8, w=8, random=True, key_door=True, obs="map", size_range=(5, 10),
+            total_steps=6_000_000, target=0.95),
 }
 
 
@@ -36,6 +39,10 @@ def parse():
     ap.add_argument("--random", action="store_true", help="每局换迷宫")
     ap.add_argument("--key-door", action="store_true")
     ap.add_argument("--fixed-seed", type=int, default=0, help="非 random 时用的迷宫 seed")
+    ap.add_argument("--obs", choices=["local", "map"], default=None)
+    ap.add_argument("--map-radius", type=int, default=12)
+    ap.add_argument("--size-range", type=int, nargs=2, default=None,
+                    help="每局随机抽尺寸，如 --size-range 5 10")
     ap.add_argument("--total-steps", type=int)
     ap.add_argument("--target", type=float, help="最近 100 局成功率达到即提前停止")
     ap.add_argument("--init", type=str, help="从 checkpoint 继续训练")
@@ -56,6 +63,10 @@ def parse():
         for k, v in STAGES[args.stage].items():
             if getattr(args, k, None) in (None, False):
                 setattr(args, k, v)
+    if args.obs is None:
+        args.obs = "local"
+    if args.size_range is not None:
+        args.size_range = tuple(args.size_range)
     if args.out is None:
         args.out = f"ckpt/stage{args.stage}.pt" if args.stage is not None else "ckpt/custom.pt"
     return args
@@ -67,8 +78,9 @@ def main():
     torch.set_num_threads(max(1, os.cpu_count() // 2))
 
     vec = VecEnv(args.num_envs, h=args.h, w=args.w, with_key_door=args.key_door,
-                 fixed_seed=None if args.random else args.fixed_seed)
-    model = ActorCritic()
+                 fixed_seed=None if args.random else args.fixed_seed,
+                 obs_mode=args.obs, map_radius=args.map_radius, size_range=args.size_range)
+    model = ActorCritic(args.obs, args.map_radius)
     if args.init:
         model.load_state_dict(torch.load(args.init)["model"])
         print(f"loaded {args.init}")
@@ -81,8 +93,10 @@ def main():
     steps, t0 = 0, time.time()
     steps_per_iter = args.num_envs * args.rollout
     n_iters = args.total_steps // steps_per_iter
-    print(f"maze {args.h}x{args.w} random={args.random} key_door={args.key_door} "
-          f"| {n_iters} iters × {steps_per_iter} steps")
+    size = f"{args.size_range[0]}–{args.size_range[1]}" if args.size_range else f"{args.h}x{args.w}"
+    print(f"maze {size} random={args.random} key_door={args.key_door} obs={args.obs} "
+          f"| {n_iters} iters × {steps_per_iter} steps "
+          f"| {sum(p.numel() for p in model.parameters()):,} params")
 
     for it in range(1, n_iters + 1):
         frac = 1.0 - (it - 1) / n_iters

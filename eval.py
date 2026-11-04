@@ -12,7 +12,7 @@ import torch
 
 from env import MazeRLEnv, optimal_steps
 from maze_game import ExplorerAgent, MazeEnv, build_level, render
-from model import ActorCritic
+from model import model_from_checkpoint
 
 
 def run_rl(model, env, seed, greedy=True):
@@ -53,13 +53,13 @@ def main():
     ap.add_argument("--h", type=int); ap.add_argument("--w", type=int)
     args = ap.parse_args()
 
-    ck = torch.load(args.ckpt)
-    cfg = ck["args"]
+    model, cfg = model_from_checkpoint(torch.load(args.ckpt))
     if args.h: cfg["h"] = args.h          # 可以在比训练时更大的迷宫上零样本测试
     if args.w: cfg["w"] = args.w
-    model = ActorCritic(); model.load_state_dict(ck["model"]); model.eval()
-    env = MazeRLEnv(cfg["h"], cfg["w"], cfg["key_door"])
-    print(f"maze {cfg['h']}x{cfg['w']} key_door={cfg['key_door']} | {args.episodes} episodes")
+    env = MazeRLEnv(cfg["h"], cfg["w"], cfg["key_door"],
+                    obs_mode=model.obs_mode, map_radius=model.R)
+    print(f"maze {cfg['h']}x{cfg['w']} key_door={cfg['key_door']} obs={model.obs_mode} "
+          f"| {args.episodes} episodes")
 
     rl_succ, rl_ratio, al_succ, al_ratio = [], [], [], []
     for ep in range(args.episodes):
