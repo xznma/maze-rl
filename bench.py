@@ -8,6 +8,7 @@
 """
 import argparse
 import json
+import os
 
 import numpy as np
 import torch
@@ -47,30 +48,41 @@ def main():
     ap.add_argument("ckpts", nargs="+")
     ap.add_argument("--sizes", type=int, nargs="+", default=[5, 8, 12, 16])
     ap.add_argument("--seed-offset", type=int, default=1_000_000)
-    ap.add_argument("--json", default=None)
+    ap.add_argument("--modes", nargs="+", default=["greedy", "sample"])
+    ap.add_argument("--json", default=None, help="每算完一格就写入，中途被杀也不丢")
     ap.add_argument("--no-algo", action="store_true")
+    ap.add_argument("--threads", type=int, default=1, help="几个进程并行跑时设 1，避免抢核")
     args = ap.parse_args()
+    torch.set_num_threads(args.threads)
 
     results = {}
+    if args.json and os.path.exists(args.json):
+        results = json.load(open(args.json))
+
+    def save(key, val, label):
+        results[key] = val
+        print(f"{label:18s} succ {val[0]:.2f} ratio {val[1]:.2f}", flush=True)
+        if args.json:
+            os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+            json.dump(results, open(args.json, "w"), indent=1)
+
     for path in args.ckpts:
         model, cfg = model_from_checkpoint(torch.load(path))
         for size in args.sizes:
             n = EPISODES.get(size, 20)
-            for mode, greedy in (("greedy", True), ("sample", False)):
-                s, r = bench(model, cfg, size, n, greedy, args.seed_offset)
-                results[f"{path}|{size}|{mode}"] = (s, r)
-                print(f"{path:18s} {size:2d}x{size:<2d} {mode:6s} succ {s:.2f} ratio {r:.2f}", flush=True)
+            for mode in args.modes:
+                key = f"{path}|{size}|{mode}"
+                if key in results:
+                    continue
+                s, r = bench(model, cfg, size, n, mode == "greedy", args.seed_offset)
+                save(key, (s, r), f"{path} {size}x{size} {mode}")
     if not args.no_algo:
-        key_door = cfg["key_door"]
         for size in args.sizes:
-            s, r = bench_algo(size, EPISODES.get(size, 20), key_door, args.seed_offset)
-            results[f"algo|{size}|-"] = (s, r)
-            print(f"{'algo':18s} {size:2d}x{size:<2d} {'-':6s} succ {s:.2f} ratio {r:.2f}", flush=True)
-    if args.json:
-        import os
-        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
-        with open(args.json, "w") as f:
-            json.dump(results, f, indent=1)
+            key = f"algo|{size}|-"
+            if key in results:
+                continue
+            s, r = bench_algo(size, EPISODES.get(size, 20), cfg["key_door"], args.seed_offset)
+            save(key, (s, r), f"algo {size}x{size}")
 
 
 if __name__ == "__main__":

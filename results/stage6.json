@@ -1,0 +1,22 @@
+{
+ "ckpt/stage6.pt|5|greedy": [
+  1.0,
+  1.17
+ ],
+ "ckpt/stage6.pt|5|sample": [
+  1.0,
+  1.26
+ ],
+ "ckpt/stage6.pt|8|greedy": [
+  0.81,
+  1.11
+ ],
+ "ckpt/stage6.pt|8|sample": [
+  0.93,
+  1.4
+ ],
+ "ckpt/stage6.pt|12|greedy": [
+  0.46,
+  1.078018185545498
+ ]
+}
