@@ -49,7 +49,9 @@ def main():
     ap.add_argument("--fixed-seed", type=int, default=None)
     ap.add_argument("--seed-offset", type=int, default=1_000_000, help="避开训练用过的 seed")
     ap.add_argument("--render", type=int, default=1)
-    ap.add_argument("--sample", action="store_true", help="按策略采样而不是 argmax")
+    ap.add_argument("--greedy", action="store_true",
+                    help="每步取 argmax。默认按策略采样：贪心是确定性的，容易在大迷宫里陷入循环，"
+                         "成功率会明显低估（16x16 上 23%% vs 63%%）")
     ap.add_argument("--h", type=int); ap.add_argument("--w", type=int)
     args = ap.parse_args()
 
@@ -64,7 +66,7 @@ def main():
     rl_succ, rl_ratio, al_succ, al_ratio = [], [], [], []
     for ep in range(args.episodes):
         seed = args.fixed_seed if args.fixed_seed is not None else args.seed_offset + ep
-        ok, steps, visited = run_rl(model, env, seed, greedy=not args.sample)
+        ok, steps, visited = run_rl(model, env, seed, greedy=args.greedy)
         opt = optimal_steps(env.grid, (1, 1))
         rl_succ.append(ok); rl_ratio.append(steps / opt if ok else np.nan)
         ok2, steps2 = run_algo(cfg["h"], cfg["w"], cfg["key_door"], seed, env.max_steps)

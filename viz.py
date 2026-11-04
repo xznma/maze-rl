@@ -16,7 +16,8 @@ from maze_game import DIRS, ExplorerAgent, MazeEnv, build_level
 from model import model_from_checkpoint
 
 
-def record_rl(model, h, w, key_door, seed):
+def record_rl(model, h, w, key_door, seed, sample=False):
+    torch.manual_seed(seed)
     env = MazeRLEnv(h, w, key_door, obs_mode=model.obs_mode, map_radius=model.R)
     obs = env.reset(seed)
     state, first = model.initial_state(1), torch.ones(1)
@@ -24,7 +25,8 @@ def record_rl(model, h, w, key_door, seed):
     with torch.no_grad():
         while not done:
             logits, _, state = model(torch.as_tensor(obs)[None, None], state, first[None])
-            a = int(logits[0, 0].argmax())
+            a = int(torch.distributions.Categorical(logits=logits[0, 0]).sample()
+                    if sample else logits[0, 0].argmax())
             prev = env.pos
             obs, _, done, info = env.step(a)
             steps.append(_rec(env.env, prev))
@@ -68,6 +70,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1_000_003)
     ap.add_argument("--h", type=int); ap.add_argument("--w", type=int)
     ap.add_argument("--out", default="replay.html")
+    ap.add_argument("--sample", action="store_true", help="按策略采样而不是 argmax")
     args = ap.parse_args()
 
     model, cfg = model_from_checkpoint(torch.load(args.ckpt))
@@ -75,7 +78,7 @@ def main():
 
     grid, start = build_level(h, w, args.seed, key_door)
     max_steps = 4 * (2 * h * w - 1)
-    rl_steps, rl_ok = record_rl(model, h, w, key_door, args.seed)
+    rl_steps, rl_ok = record_rl(model, h, w, key_door, args.seed, args.sample)
     al_steps, al_ok = record_algo(grid, start, max_steps)
 
     data = {
