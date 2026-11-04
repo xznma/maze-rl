@@ -64,10 +64,15 @@ def trace(parent, goal):
 # ---------------------------------------------------------------------------
 # 2. 放置 起点 / 终点 / 门 / 钥匙
 # ---------------------------------------------------------------------------
-def build_level(h, w, seed=None):
+def build_level(h, w, seed=None, with_key_door=True):
     rng = random.Random(seed)
     grid = generate_maze(h, w, rng)
     start, exit_ = (1, 1), (2 * h - 1, 2 * w - 1)
+
+    if not with_key_door:                    # 简化版：只有起点终点
+        grid[start[0]][start[1]] = START
+        grid[exit_[0]][exit_[1]] = EXIT
+        return grid, start
 
     # 唯一路径
     path = trace(bfs(grid, start), exit_)
